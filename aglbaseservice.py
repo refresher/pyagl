@@ -10,11 +10,11 @@ from os import environ
 from argparse import ArgumentParser
 
 
-IPADDR = '127.0.0.1'
-PORT = '30000'
-TOKEN = 'HELLO'
-UUID = 'magic'
-URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
+# IPADDR = '127.0.0.1'
+# PORT = '30000'
+# TOKEN = 'HELLO'
+# UUID = 'magic'
+# URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
 
 class AFBT(IntEnum):
     REQUEST = 2,

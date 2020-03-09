@@ -38,7 +38,6 @@ class WeatherService:
         return await self.receive()
 
 
-
 async def main():
     MPS = await WeatherService()
     try:

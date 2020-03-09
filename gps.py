@@ -50,12 +50,9 @@ class GPSService:
 async def main():
     gpss = await GPSService()
     try:
-        await gpss.subscribe()
-        data = await gpss.receive()
-        data = await gpss.receive()
-        data = await gpss.receive()
         data = await gpss.receive()
         print(data)
+        await gpss.subscribe()
 
     except ConnectionClosedError as e:
         print(e)

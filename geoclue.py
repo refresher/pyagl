@@ -1,11 +1,11 @@
 import asyncio
 from random import randint
-from aglbaseservice import AGLBaseService, AFBT
+from aglbaseservice import AGLBaseService
 
 
 class GeoClueService(AGLBaseService):
-    def __init__(self):
-        super().__init__(api='geoclue', ip='192.168.234.202', port='30009')
+    def __init__(self, ip, port, api='geoclue'):
+        super().__init__(ip=ip, port=port, api=api)
 
     async def location(self):
         verb = 'location'
@@ -22,7 +22,7 @@ class GeoClueService(AGLBaseService):
 
 
 async def main(loop):
-    GCS = await GeoClueService()
+    GCS = await GeoClueService(ip='192.168.234.202', port='30009')
     print(await GCS.location())
     listener = loop.create_task(GCS.listener())
     await listener
