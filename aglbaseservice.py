@@ -9,9 +9,6 @@ from websockets import connect
 from os import environ
 from argparse import ArgumentParser
 
-import abc
-import inspect
-# https://stackoverflow.com/questions/47555934/how-require-that-an-abstract-method-is-a-coroutine
 
 IPADDR = '127.0.0.1'
 PORT = '30000'
@@ -34,7 +31,22 @@ def addresponse(msgid, msg):
     if msgid in msgq.keys():
         msgq[msgid]['response'] = msg
 
-class AbstractAGLBaseService:
+class AGLBaseService:
+    api = None
+    url = None
+    ip = None
+    port = None
+    token = None
+    uuid = None
+
+    def __init__(self, api, ip, port, url=None, token='HELLO', uuid='magic'):
+        self.api = api
+        self.url = url
+        self.ip = ip
+        self.port = port
+        self.token = token
+        self.uuid = uuid
+
     def __await__(self):
         return self._async_init().__await__()
 
@@ -42,7 +54,10 @@ class AbstractAGLBaseService:
         return self._async_init()
 
     async def _async_init(self):
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'])
+        # setting ping_interval to None because AFB does not support websocket ping
+        # if set to !None, the library will close the socket after the default timeout
+        URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
+        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None)
         self.websocket = await self._conn.__aenter__()
         return self
 
@@ -62,20 +77,31 @@ class AbstractAGLBaseService:
         try:
             while True:
                 msg = await self.receive()
-                print(f"received {msg}")
+                print(f"Received {msg}")
                 try:
                     data = json.loads(msg)
-                    if isinstance(data,list):
+                    if isinstance(data, list):
                         if data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
                             msgid = int(data[1])
                             if msgid in msgq:
                                 addresponse(msgid, data)
 
-
                 except JSONDecodeError:
-                    print("not decoding a non-json message")
+                    print("Not decoding a non-json message")
 
         except KeyboardInterrupt:
-            pass
+            print("Received keyboard interrupt, exiting")
         except asyncio.CancelledError:
-            print("websocket listener coroutine stopped")
+            print("Websocket listener coroutine stopped")
+
+    async def subscribe(self, event):
+        msgid = randint(0, 999999)
+        msg = f'["{AFBT.REQUEST}","{msgid}","{self.api}/subscribe",{{"value": "{event}"}}]'
+        await self.send(msg)
+
+    async def unsubscribe(self, event):
+        verb = 'unsubscribe'
+        msgid = randint(0, 999999)
+        msg = f'[2,"{msgid}","{self.api}/{verb}",{{"value": "{event}"}}]'
+        addrequest(msgid, msg)
+        await self.send(msg)
