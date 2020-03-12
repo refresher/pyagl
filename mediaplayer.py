@@ -1,6 +1,7 @@
 import json
 from json import JSONDecodeError
 from random import randint
+import os
 import sys
 import asyncio
 from random import randint
@@ -9,13 +10,9 @@ import concurrent
 from enum import IntEnum
 from os import environ
 from argparse import ArgumentParser
+from aglbaseservice import AGLBaseService
 
-IPADDR = '192.168.234.202'
-PORT = '30016'
-# PORT = '30031'
-TOKEN = 'HELLO'
-UUID = 'magic'
-URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
+URL = f'ws://{os.environ["AGL_TGT_IP"]}:{os.environ.get("AGL_TGT_PORT","30016")}/api?token=HELLO&uuid=magic'
 
 # x-AFB-ws-json1 message Type
 class AFBT(IntEnum):
@@ -34,15 +31,11 @@ def addresponse(msgid, msg):
         msgq[msgid]['response'] = msg
 
 
-class MediaPlayerService:
-    api = None
-    url = None
-    ip = None
-    port = None
-    token = None
-    uuid = None
+class MediaPlayerService():
+    def __init__(self, ip, port):
+        super().__init__(api='mediaplayer', ip=ip, port=port)
 
-    def __init__(self, url=None, api='mediaplayer', ip='127.0.0.1', port='30000', token='HELLO', uuid='magic'):
+    def __init__(self, url=None, api='', ip='127.0.0.1', port='30000', token='HELLO', uuid='magic'):
         self.api = api
         self.url = url
         self.ip = ip
@@ -92,7 +85,6 @@ class MediaPlayerService:
                             msgid = int(data[1])
                             if msgid in msgq:
                                 addresponse(msgid, data)
-
 
                 except JSONDecodeError:
                     print("not decoding a non-json message")
@@ -164,12 +156,14 @@ class MediaPlayerService:
 
 
 async def main(loop):
-    MPS = await MediaPlayerService()
+    addr = os.environ.get('AGL_TGT_IP', 'localhost')
+    port = os.environ.get('AGL_TGT_PORT', '30016')
+
+    MPS = await MediaPlayerService(ip=addr, port=port)
     listener = loop.create_task(MPS.listener())
     try:
         await MPS.subscribe()
-        await MPS.subscribe('playlist')
-        await MPS.control('pick-track', 6)
+
         await listener
     except ConnectionClosedError as e:
         print("Connection timed out or closed abnormally. Trying to reconnect...")

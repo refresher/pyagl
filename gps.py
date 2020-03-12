@@ -4,62 +4,40 @@ import asyncio
 from random import randint
 from websockets import connect
 from websockets.exceptions import ConnectionClosedError
+import os
 import json
 import concurrent
+from aglbaseservice import AGLBaseService
 
 
-IPADDR = '192.168.234.34'
-PORT = '30011'
-# PORT = '30031'
-TOKEN = 'HELLO'
-UUID = 'magic'
-URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
-
-msgq = {}
-
-
-class GPSService:
-    def __await__(self):
-        return self._async_init().__await__()
-
-    async def _async_init(self):
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=1)
-        self.websocket = await self._conn.__aenter__()
-        return self
-
-    async def close(self):
-        await self._conn.__aexit__(*sys.exc_info())
-
-    async def send(self, message):
-        await self.websocket.send(message)
-
-    async def receive(self):
-        return await self.websocket.recv()
+class GPSService(AGLBaseService):
+    def __init__(self, ip, port):
+        super().__init__(api='gps', ip=ip, port=port)
 
     async def location(self):
+        verb = 'location'
         msgid = randint(0, 999999)
-        msgq[msgid] = {'request': msgid, 'response': None}
-        await self.websocket.send(f'[2,"{msgid}","gps/location",""]')
+        await self.send(f'[2,"{msgid}","{self.api}/{verb}",""]')
         return await self.receive()
 
     async def subscribe(self, event='location'):
-        msgid = randint(0, 999999)
-        msg = f'[2,"{msgid}","gps/subscribe",{{"value": "{event}"}}]'
-        await self.send(msg)
+        await super().subscribe(event=event)
 
-async def main():
-    gpss = await GPSService()
-    try:
-        data = await gpss.receive()
-        print(data)
-        await gpss.subscribe()
+    async def unsubscribe(self, event='location'):
+        await super().subscribe(event=event)
 
-    except ConnectionClosedError as e:
-        print(e)
 
-    finally:
-        await gpss.close()
+async def main(loop):
+    addr = os.environ.get('AGL_TGT_IP', 'localhost')
+    port = os.environ.get('AGL_TGT_PORT', '30011')
+
+    gpss = await GPSService(ip=addr, port=port)
+
+    await gpss.location()
+    # listener = loop.create_task(gpss.listener())
+
+
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop.run_until_complete(main(loop))

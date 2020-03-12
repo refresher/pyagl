@@ -6,8 +6,7 @@ import sys
 import asyncio
 from random import randint
 from websockets import connect
-from os import environ
-from argparse import ArgumentParser
+
 
 
 # IPADDR = '127.0.0.1'
@@ -93,10 +92,12 @@ class AGLBaseService:
             print("Received keyboard interrupt, exiting")
         except asyncio.CancelledError:
             print("Websocket listener coroutine stopped")
+        except Exception as e:
+            print("vote du phoque?!?!? : " + str(e))
 
     async def subscribe(self, event):
         msgid = randint(0, 999999)
-        msg = f'["{AFBT.REQUEST}","{msgid}","{self.api}/subscribe",{{"value": "{event}"}}]'
+        msg = f'[{AFBT.REQUEST},"{msgid}","{self.api}/subscribe",{{"value": "{event}"}}]'
         await self.send(msg)
 
     async def unsubscribe(self, event):
