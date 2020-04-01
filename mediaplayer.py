@@ -22,6 +22,7 @@ class MediaPlayerService(AGLBaseService):
         super().__init__(api='mediaplayer', ip=ip, port=port)
 
     async def playlist(self):
+        self.request('playlist')
         verb = 'playlist'
         msgid = randint(0, 999999)
 

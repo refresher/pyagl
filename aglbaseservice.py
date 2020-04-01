@@ -6,14 +6,10 @@ import sys
 import asyncio
 from random import randint
 from websockets import connect
+import logging
+import asyncssh
 
-
-
-# IPADDR = '127.0.0.1'
-# PORT = '30000'
-# TOKEN = 'HELLO'
-# UUID = 'magic'
-# URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
+from typing import Union
 
 class AFBT(IntEnum):
     REQUEST = 2,
@@ -37,14 +33,17 @@ class AGLBaseService:
     port = None
     token = None
     uuid = None
+    service = None
 
-    def __init__(self, api, ip, port, url=None, token='HELLO', uuid='magic'):
+    def __init__(self, api: str, ip: str, port: str, url: str = None,
+                 token: str = 'HELLO', uuid: str = 'magic', service: str = None):
         self.api = api
         self.url = url
         self.ip = ip
         self.port = port
         self.token = token
         self.uuid = uuid
+        self.service = service
 
     def __await__(self):
         return self._async_init().__await__()
@@ -72,6 +71,11 @@ class AGLBaseService:
     async def receive(self):
         return await self.websocket.recv()
 
+    async def portfinder(self):
+        with asyncssh.connect(self.ip) as c:
+            data = await c.run('ls -lah /', check=True)
+            print(data)
+
     async def listener(self):
         try:
             while True:
@@ -95,14 +99,18 @@ class AGLBaseService:
         except Exception as e:
             print("vote du phoque?!?!? : " + str(e))
 
+    async def request(self,
+                      verb: str,
+                      values: Union[str, dict] = "",
+                      msgid: int = randint(0, 9999999),
+                      waitresponse: bool = False):
+        l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
+        await self.send(l)
+        if waitresponse:
+            return await self.receive()
+
     async def subscribe(self, event):
-        msgid = randint(0, 999999)
-        msg = f'[{AFBT.REQUEST},"{msgid}","{self.api}/subscribe",{{"value": "{event}"}}]'
-        await self.send(msg)
+        await self.request('subscribe', {'value': f'{event}'})
 
     async def unsubscribe(self, event):
-        verb = 'unsubscribe'
-        msgid = randint(0, 999999)
-        msg = f'[2,"{msgid}","{self.api}/{verb}",{{"value": "{event}"}}]'
-        addrequest(msgid, msg)
-        await self.send(msg)
+        await self.request('unsubscribe', {'value': f'{event}'})
