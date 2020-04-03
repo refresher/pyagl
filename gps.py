@@ -1,9 +1,11 @@
 import asyncio
 import os
 import asyncssh
+from asyncssh import SSHClientProcess
 from aglbaseservice import AGLBaseService
 from parse import *
 import re
+import argparse
 
 class GPSService(AGLBaseService):
     def __init__(self, ip, port):
@@ -28,16 +30,23 @@ async def main(loop):
         # find the name of the service since it is dynamically generated every time
         #TODO CHANGE ME to use the name of the service dynamically after cleaning this crap here
         servicestr = 'agl-service-gps'
-        servicename = await c.run(f"systemctl | grep {servicestr} | awk '{{print $1}}'", check=False)
+        servicename = await c.run(f"systemctl --all | grep {servicestr} | awk '{{print $1}}'", check=False)
+        if servicestr not in servicename.stdout:
+            print(f"Unable to find service matching pattern '{servicestr}'")
 
         #TODO decide what to do if the service is not started - scan for disabled units/run service via afm-util
         print(f"Found service name: {servicename.stdout.strip()}")
         # get the pid
-        pid = await c.run(f'systemctl show --property MainPID --value {servicename.stdout}')
-        print(f'Service PID: {pid.stdout.strip()}')
+        pidres = await c.run(f'systemctl show --property MainPID --value {servicename.stdout}')
+        pid = int(pidres.stdout.strip(), 10)
+        if pid is 0:
+            print(f'Service {servicename.stdout.strip()} is stopped')
+            exit(1)
+        else:
+            print(f'Service PID: {pidres.stdout.strip()}')
 
         # get all sockets in the process' fd directory and their respective inodes
-        sockets = await c.run(f'find /proc/{pid.stdout.strip()}/fd/ | xargs readlink | grep socket')
+        sockets = await c.run(f'find /proc/{pidres.stdout.strip()}/fd/ | xargs readlink | grep socket')
         inodes = frozenset(re.findall('socket:\[(.*)\]', sockets.stdout))
 
         print(f"Socket inodes: {inodes}")
@@ -61,7 +70,7 @@ async def main(loop):
         # parsing could break at some point, because returns None and cannot be parsed
 
         parsedtcpsockets = [parse(fieldsstr, l) for l in tcpsockets if l is not None]
-        socketinodesbythisprocess = [l for l in parsedtcpsockets if l is not None and l.named['inode'] in inodes]
+        socketinodesbythisprocess = [l for l in parsedtcpsockets if l is isinstance(l,Result) and l.named['inode'] in inodes]
         # got dem sockets
         # expecting >1 because the process could be listening on 8080, all api services' ports are in 30000 port range
         for s in socketinodesbythisprocess:

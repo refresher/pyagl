@@ -8,6 +8,8 @@ from random import randint
 from websockets import connect
 import logging
 import asyncssh
+import re
+from parse import *
 
 from typing import Union
 
@@ -18,6 +20,7 @@ class AFBT(IntEnum):
     EVENT = 5
 
 msgq = {}
+# TODO : Replace prints with logging
 
 def addrequest(msgid, msg):
     msgq[msgid] = {'request': msg, 'response': None}
@@ -35,7 +38,7 @@ class AGLBaseService:
     uuid = None
     service = None
 
-    def __init__(self, api: str, ip: str, port: str, url: str = None,
+    def __init__(self, api: str, ip: str, port: str = None, url: str = None,
                  token: str = 'HELLO', uuid: str = 'magic', service: str = None):
         self.api = api
         self.url = url
@@ -72,9 +75,39 @@ class AGLBaseService:
         return await self.websocket.recv()
 
     async def portfinder(self):
-        with asyncssh.connect(self.ip) as c:
-            data = await c.run('ls -lah /', check=True)
-            print(data)
+        async with asyncssh.connect(self.ip, username='root') as c:
+            servicename = await c.run(f"systemctl --all | grep {self.service} | awk '{{print $1}}'", check=False)
+            if self.service not in servicename.stdout:
+                print(f"Unable to find service matching pattern '{self.service}'")
+                exit(1)
+            # TODO decide what to do if the service is not started - scan for disabled units/run service via afm-util
+            print(f"Found service name: {servicename.stdout.strip()}")
+            pidres = await c.run(f'systemctl show --property MainPID --value {servicename.stdout}')
+            pid = int(pidres.stdout.strip(), 10)
+            if pid is 0:
+                print(f'Service {servicename.stdout.strip()} is stopped')
+                return None
+            else:
+                print(f'Service PID: {pidres.stdout.strip()}')
+
+            sockets = await c.run(f'find /proc/{pidres.stdout.strip()}/fd/ | xargs readlink | grep socket')
+            inodes = frozenset(re.findall('socket:\[(.*)\]', sockets.stdout))
+
+            print(f"Socket inodes: {inodes}")
+
+            alltcp = await c.run('cat /proc/net/tcp')
+            fieldsstr = '{sl}: {local_address} {rem_address} {st} {tx_queue}:{rx_queue} {tr}:{tmwhen} {retrnsmt} {uid}' \
+                        ' {timeout} {inode} {sref_cnt} {memloc} {rto} {pred_sclk} {ackquick} {congest} {slowstart}'
+            tcpsockets = [' '.join(l.split()) for l in alltcp.stdout.splitlines()[1:]]
+            parsedtcpsockets = [parse(fieldsstr, l) for l in tcpsockets if l is not None]
+            socketinodesbythisprocess = [l for l in parsedtcpsockets if
+                                         l is isinstance(l, Result) and l.named['inode'] in inodes]
+            for s in socketinodesbythisprocess:
+                _, port = tuple(parse('{}:{}', s['local_address']))
+                port = int(port, 16)
+                if port > 30000:
+                    print(f'found port {port}')
+                    return port
 
     async def listener(self):
         try:
@@ -97,12 +130,9 @@ class AGLBaseService:
         except asyncio.CancelledError:
             print("Websocket listener coroutine stopped")
         except Exception as e:
-            print("vote du phoque?!?!? : " + str(e))
+            print("Unhandled seal: " + str(e))
 
-    async def request(self,
-                      verb: str,
-                      values: Union[str, dict] = "",
-                      msgid: int = randint(0, 9999999),
+    async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = randint(0, 9999999),
                       waitresponse: bool = False):
         l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
         await self.send(l)
