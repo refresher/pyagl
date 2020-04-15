@@ -1,32 +1,22 @@
-import json
-from json import JSONDecodeError
 import os
-import sys
 import asyncio
-from random import randint
+import json
 
-from websockets import connect, ConnectionClosedError
-import concurrent
-from enum import IntEnum
 from aglbaseservice import AGLBaseService
-
-global DEBUG
-DEBUG = True
 
 
 class MediaPlayerService(AGLBaseService):
     def __await__(self):
         return super()._async_init().__await__()
 
-    def __init__(self, ip, port):
-        super().__init__(api='mediaplayer', ip=ip, port=port)
+    def __init__(self, ip, port = None):
+        super().__init__(api='mediaplayer', ip=ip, port=port, service='agl-service-mediaplayer')
 
-    async def playlist(self):
-        self.request('playlist')
-        verb = 'playlist'
-        msgid = randint(0, 999999)
-
-        await self.send(f'[2,"{msgid}","{self.api}/{verb}",""]')
+    async def playlist(self, waitresponse=False):
+        if waitresponse:
+            return await self.request('playlist', waitresponse=waitresponse)
+        else:
+            await self.request('playlist')
 
     async def subscribe(self, event='metadata'):
         await super().subscribe(event=event)
@@ -37,7 +27,6 @@ class MediaPlayerService(AGLBaseService):
     async def control(self, name, value=None):
         verb = 'controls'
         loopstate = ['off', 'playlist', 'track']
-
         controls = {
             'play': None,
             'pause': None,
@@ -50,46 +39,46 @@ class MediaPlayerService(AGLBaseService):
             'volume': 'volume',
             'loop': 'state'
         }
-        assert name in controls.keys(), 'Tried to use non-existant {name} as control for {self.api}'
+        assert name in controls.keys(), 'Tried to use non-existent {name} as control for {self.api}'
 
-        msgid = randint(0, 999999)
         if name in ['play', 'pause', 'previous', 'next']:
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {{"value": "{name}"}}]'
+            msg = {'value': name}
         elif name in ['seek', 'fast-forward', 'rewind']:
             assert value > 0, "Tried to seek with negative integer"
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {{"value": "{name}", "position": "{str(value)}"}}]'
+            msg = {'value': name, controls[name]: str(value)}
         elif name == 'pick-track':
             assert type(value) is int, "Try picking a song with an integer"
             assert value > 0, "Tried to pick a song with a negative integer"
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {{"value": "{name}", "index": {str(value)}}}]'
+            msg = {'value': name, controls[value]: str(value)}
         elif name == 'volume':
             assert type(value) is int, "Try setting the volume with an integer"
             assert value > 0, "Tried to set the volume with a negative integer, use values betwen 0-100"
             assert value < 100, "Tried to set the volume over 100%, use values betwen 0-100"
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {{"value": "{name}", "{name}": {str(value)}}}]'
+            msg = {'value': name, name: str(value)}
         elif name == 'loop':
             assert value in loopstate, f'Tried to set invalid loopstate - {value}, use "off", "playlist" or "track"'
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {{"value": "{name}", "{controls[name]}": {str(value)}}}]'
+            msg = {'value': name, controls[name]: str(value)}
 
-        await self.send(msg)
+        await self.request(verb, msg)
 
 
 async def main(loop):
     addr = os.environ.get('AGL_TGT_IP', '192.168.234.202')
-    port = os.environ.get('AGL_TGT_PORT', '30016')
+    port = os.environ.get('AGL_TGT_PORT', None)
 
     MPS = await MediaPlayerService(ip=addr, port=port)
-    listener = loop.create_task(MPS.listener())
+    # listener = loop.create_task(MPS.listener())
     try:
         await MPS.subscribe('metadata')
+        print(await MPS.playlist(waitresponse=True))
         await MPS.control('next')
 
-        await listener
+        # await listener
 
     except KeyboardInterrupt:
         pass
 
-    listener.cancel()
+    # listener.cancel()
     await MPS.unsubscribe('playlist')
 
 

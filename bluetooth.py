@@ -3,6 +3,7 @@ import json
 import os
 from random import randint
 from aglbaseservice import AGLBaseService
+import logging
 
 Verbs = ['subscribe', 'unsubscribe', 'managed_objects', 'adapter_state', 'default_adapter', 'avrcp_controls',
          'connect', 'disconnect', 'pair', 'cancel_pairing', 'confirm_pairing', 'remove_device']
@@ -11,8 +12,8 @@ BTEventType = ['adapter_changes', 'device_changes', 'media', 'agent']
 
 class BluetoothService(AGLBaseService):
 
-    def __init__(self, ip, port):
-        super().__init__(api='Bluetooth-Manager', ip=ip, port=port)
+    def __init__(self, ip, port=None, service='agl-service-bluetooth'):
+        super().__init__(api='Bluetooth-Manager', ip=ip, port=port, service=service)
 
     async def subscribe(self, event='device_changes'):
         await super().subscribe(event=event)
@@ -20,30 +21,21 @@ class BluetoothService(AGLBaseService):
     async def unsubscribe(self, event='device_changes'):
         await super().unsubscribe(event=event)
 
-    async def managed_objects(self):
-        verb = 'managed_objects'
-        msgid = randint(0, 999999)
-        msg = f'[2,"{msgid}","{self.api}/{verb}",""]'
-        # print(msg)
-        await self.send(msg)
-        return await self.receive()
+    async def managed_objects(self, waitresponse=False):
+        return await self.request('managed_objects', waitresponse=waitresponse)
 
-    async def adapter_state(self, param=None, value=None):
-        verb = 'adapter_state'
-        msgid = randint(0, 999999)
-        if param:
-            p = {'adapter': param}
+    async def adapter_state(self, adapter=None, value=None, waitresponse=False):
+        p = {}
+        if adapter:
+            p = {'adapter': adapter}
             if isinstance(value, dict):
                 p = {**p, **value}
 
-            # msg = f'[2,"{msgid}","{self.api}/{verb}","{param}": {value if value is not None else ""}]'
-            msg = f'[2,"{msgid}","{self.api}/{verb}", {json.dumps(p)}]'
+        return await self.request('adapter_state', p, waitresponse=waitresponse)
+        if waitresponse:
+            return await self.request('adapter_state', p)
         else:
-            msg = f'[2,"{msgid}","{self.api}/{verb}", ""]'
-
-        print(msg)
-        await self.send(msg)
-        return await self.receive()
+            await self.request('adapter_state', p)
 
     async def default_adapter(self):
         verb = 'default_adapter'
@@ -87,7 +79,7 @@ class BluetoothService(AGLBaseService):
 
 async def main(loop):
     addr = os.environ.get('AGL_TGT_IP', 'localhost')
-    port = os.environ.get('AGL_TGT_PORT', '30005')
+    #port = os.environ.get('AGL_TGT_PORT', '30005')
 
     BTS = await BluetoothService(ip=addr, port=port)
     print(await BTS.adapter_state('hci1', {'uuids': ['0000110e-0000-1000-8000-00805f9b34fb']}))
