@@ -1,36 +1,38 @@
+from aglbaseservice import AGLBaseService
 import asyncio
 import os
-import asyncssh
-from asyncssh import SSHClientProcess
-from aglbaseservice import AGLBaseService
-from parse import *
-import re
-import argparse
+
 
 class GPSService(AGLBaseService):
+    service = 'agl-service-gps'
+    parser = AGLBaseService.getparser()
+    parser.add_argument('--location', help='Query location verb', action='store_true')
+
     def __init__(self, ip, port=None):
         super().__init__(api='gps', ip=ip, port=port, service='agl-service-gps')
 
-    async def location(self):
-        return await self.request('location', waitresponse=True)
+    async def location(self, waitresponse=False):
+        return await self.request('location', waitresponse=waitresponse)
 
-    async def subscribe(self, event='location'):
-        await super().subscribe(event=event)
+    async def subscribe(self, event='location', waitresponse=False):
+        return await super().subscribe(event=event, waitresponse=waitresponse)
 
-    async def unsubscribe(self, event='location'):
-        await super().subscribe(event=event)
+    async def unsubscribe(self, event='location', waitresponse=False):
+        return await super().subscribe(event=event, waitresponse=waitresponse)
 
 
 async def main(loop):
-    addr = os.environ.get('AGL_TGT_IP', 'localhost')
-    port = os.environ.get('AGL_TGT_PORT', '30011')
-    jsonpayload = os.environ.get('AGL_TGT_JSON_PAYLOAD', None)
+    args = GPSService.parser.parse_args()
+    gpss = await GPSService(args.ipaddr)
 
-    gpss = await GPSService(addr)
-    print(await gpss.location())
-    listener = loop.create_task(gpss.listener())
-    await listener
+    if args.loglevel:
+        GPSService.logger.setLevel(args.loglevel)
+    if args.location:
+        print(await gpss.location(waitresponse=True))
+    if args.subscribe:
+        await gpss.subscribe(args.subscribe)
 
+    await gpss.listener()
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
