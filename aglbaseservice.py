@@ -1,16 +1,17 @@
-from enum import IntEnum
-import json
 from json import JSONDecodeError
-from random import randint
-import sys
-import asyncio
-from random import randint
-from websockets import connect
-import logging
-import asyncssh
-import re
 from parse import Result, parse
+from websockets import connect
+from random import randint
+from enum import IntEnum
 from typing import Union
+import asyncssh
+import argparse
+import asyncio
+import logging
+import json
+import sys
+import os
+import re
 
 logging.getLogger('AGLBaseService')
 logging.basicConfig(level=logging.DEBUG)
@@ -22,7 +23,6 @@ class AFBT(IntEnum):
     EVENT = 5
 
 msgq = {}
-# TODO : Replace prints with logging
 
 def addrequest(msgid, msg):
     msgq[msgid] = {'request': msg, 'response': None}
@@ -32,14 +32,29 @@ def addresponse(msgid, msg):
         msgq[msgid]['response'] = msg
 
 class AGLBaseService:
-    api = None
-    url = None
-    ip = None
+    api: str
+    url: str
+    ip : str
     port = None
-    token = None
-    uuid = None
+    token: str
+    uuid: str
     service = None
-    logger = None
+    logger = logging.getLogger(service)
+
+    @staticmethod
+    def getparser():
+        parser = argparse.ArgumentParser(description='Utility to interact with agl-service-gps via it\'s websocket')
+        parser.add_argument('-l', '--loglevel', help='Level of logging verbosity', default='INFO',
+                            choices=list(logging._nameToLevel.keys()))
+        parser.add_argument('ipaddr', default=os.environ.get('AGL_TGT_IP', 'localhost'), help='AGL host address')
+        parser.add_argument('--port', default=os.environ.get('AGL_TGT_PORT', None), help=f'AGL service websocket port')
+        parser.add_argument('--listener', default=False, help='Register a listener for incoming events', action='store_true')
+        parser.add_argument('--subscribe', type=str, help='Subscribe to event type', metavar='event')
+        parser.add_argument('--unsubscribe', type=str, help='Unsubscribe from event type', metavar='event')
+        parser.add_argument('--json', type=str, help='Send your own json string')
+        parser.add_argument('--verb', type=str, help='Send the json above to specific verb')
+        parser.add_argument('--api', type=str, help='Send the above two to a specific api')
+        return parser
 
     def __init__(self, api: str, ip: str, port: str = None, url: str = None,
                  token: str = 'HELLO', uuid: str = 'magic', service: str = None):
@@ -66,7 +81,7 @@ class AGLBaseService:
             if serviceport is not None:
                 self.port = serviceport
             else:
-                self.logger('Unable to find port')
+                self.logger.error('Unable to find port')
                 exit(1)
 
         URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
@@ -98,11 +113,11 @@ class AGLBaseService:
                 logging.warning(f'Service {servicename.stdout.strip()} is stopped')
                 return None
             else:
-                logging.debug(f'Service PID: {str(pid)}')
+                self.logger.debug(f'Service PID: {str(pid)}')
 
             sockets = await c.run(f'find /proc/{pid}/fd/ | xargs readlink | grep socket')
             inodes = frozenset(re.findall('socket:\[(.*)\]', sockets.stdout))
-            logging.debug(f"Socket inodes: {inodes}")
+            self.logger.debug(f"Socket inodes: {inodes}")
 
             procnettcp = await c.run('cat /proc/net/tcp')
             fieldsstr = '{sl}: {local_address} {rem_address} {st} {tx_queue}:{rx_queue} {tr}:{tmwhen} {retrnsmt} {uid}'\
@@ -125,17 +140,19 @@ class AGLBaseService:
                 _, port = tuple(parse('{}:{}', s['local_address']))
                 port = int(port, 16)
                 if port >= 30000:  # the port is above 30000 range, 8080 is some kind of proxy
-                    logging.debug(f'Service running at port {port}')
+                    self.logger.debug(f'Service running at port {port}')
                     return port
 
-    async def listener(self):
+    async def listener(self, stdout: bool = False):
         try:
             while True:
                 msg = await self.receive()
-                # self.logger.debug(f"Received websocket{msg}")
                 try:
                     data = json.loads(msg)
+                    self.logger.debug('[AGL] -> ' + msg)
                     if isinstance(data, list):
+                        if stdout:
+                            print(data)
                         if data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
                             msgid = int(data[1])
                             if msgid in msgq:
@@ -145,11 +162,11 @@ class AGLBaseService:
                     self.logger.warning("Not decoding a non-json message")
 
         except KeyboardInterrupt:
-            logging.debug("Received keyboard interrupt, exiting")
+            self.logger.debug("Received keyboard interrupt, exiting")
         except asyncio.CancelledError:
-            logging.warning("Websocket listener coroutine stopped")
+            self.logger.warning("Websocket listener coroutine stopped")
         except Exception as e:
-            logging.error("Unhandled seal: " + str(e))
+            self.logger.error("Unhandled seal: " + str(e))
 
     async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = randint(0, 9999999),
                       waitresponse: bool = False):
@@ -159,8 +176,8 @@ class AGLBaseService:
         if waitresponse:
             return await self.receive()
 
-    async def subscribe(self, event):
-        await self.request('subscribe', {'value': f'{event}'})
+    async def subscribe(self, event, waitresponse=False):
+        await self.request('subscribe', {'value': f'{event}'}, waitresponse=waitresponse)
 
-    async def unsubscribe(self, event):
-        await self.request('unsubscribe', {'value': f'{event}'})
+    async def unsubscribe(self, event, waitresponse=False):
+        await self.request('unsubscribe', {'value': f'{event}'}, waitresponse=waitresponse)
