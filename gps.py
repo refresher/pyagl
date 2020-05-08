@@ -2,6 +2,8 @@ from aglbaseservice import AGLBaseService
 import asyncio
 import os
 
+from concurrent import futures
+xc = futures.ThreadPoolExecutor(1)
 
 class GPSService(AGLBaseService):
     service = 'agl-service-gps'
@@ -25,10 +27,20 @@ async def main(loop):
     args = GPSService.parser.parse_args()
     gpss = await GPSService(args.ipaddr)
 
+    r = await loop.run_in_executor(xc, gpss.response)
+
     if args.loglevel:
         GPSService.logger.setLevel(args.loglevel)
     if args.location:
-        print(await gpss.location(waitresponse=True))
+        await gpss.location()
+        async for response in r:
+            await gpss.location()
+            print(await r.__anext__())
+
+
+        # loc = await l
+        # print(loc)
+
     if args.subscribe:
         await gpss.subscribe(args.subscribe)
 

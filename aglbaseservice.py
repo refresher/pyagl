@@ -12,6 +12,7 @@ import json
 import sys
 import os
 import re
+from contextlib import asynccontextmanager
 
 logging.getLogger('AGLBaseService')
 logging.basicConfig(level=logging.DEBUG)
@@ -30,6 +31,7 @@ def addrequest(msgid, msg):
 def addresponse(msgid, msg):
     if msgid in msgq.keys():
         msgq[msgid]['response'] = msg
+
 
 class AGLBaseService:
     api: str
@@ -85,7 +87,7 @@ class AGLBaseService:
                 exit(1)
 
         URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None)
+        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None, timeout=2)
         self.websocket = await self._conn.__aenter__()
         return self
 
@@ -102,7 +104,11 @@ class AGLBaseService:
         return await self.websocket.recv()
 
     async def portfinder(self):
+        # TODO:handle ssh timeouts, asyncssh does not support it apparently, and connect returns context_manager which
+        # cannot be used with asyncio.wait_for
+
         async with asyncssh.connect(self.ip, username='root') as c:
+
             servicename = await c.run(f"systemctl --all | grep {self.service}-- | awk '{{print $1}}'", check=False)
             if self.service not in servicename.stdout:
                 logging.error(f"Service matching pattern - '{self.service}' - NOT FOUND")
@@ -160,6 +166,31 @@ class AGLBaseService:
 
                 except JSONDecodeError:
                     self.logger.warning("Not decoding a non-json message")
+
+        except KeyboardInterrupt:
+            self.logger.debug("Received keyboard interrupt, exiting")
+        except asyncio.CancelledError:
+            self.logger.warning("Websocket listener coroutine stopped")
+        except Exception as e:
+            self.logger.error("Unhandled seal: " + str(e))
+
+    async def response(self, stdout: bool = False):
+        try:
+            msg = await self.websocket.recv()
+            try:
+                data = json.loads(msg)
+                yield data
+                self.logger.debug('[AGL] -> ' + msg)
+                if isinstance(data, list):
+                    if stdout:
+                        print(data)
+                    if data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
+                        msgid = int(data[1])
+                        if msgid in msgq:
+                            addresponse(msgid, data)
+                yield data
+            except JSONDecodeError:
+                self.logger.warning("Not decoding a non-json message")
 
         except KeyboardInterrupt:
             self.logger.debug("Received keyboard interrupt, exiting")

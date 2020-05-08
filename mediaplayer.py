@@ -1,8 +1,6 @@
-import os
-import asyncio
-import json
-
 from aglbaseservice import AGLBaseService
+import asyncio
+import os
 
 
 class MediaPlayerService(AGLBaseService):
@@ -13,19 +11,15 @@ class MediaPlayerService(AGLBaseService):
         super().__init__(api='mediaplayer', ip=ip, port=port, service='agl-service-mediaplayer')
 
     async def playlist(self, waitresponse=False):
-        if waitresponse:
-            return await self.request('playlist', waitresponse=waitresponse)
-        else:
-            await self.request('playlist')
+        return await self.request('playlist', waitresponse=waitresponse)
 
-    async def subscribe(self, event='metadata'):
-        await super().subscribe(event=event)
+    async def subscribe(self, event='metadata', waitresponse=False):
+        await super().subscribe(event=event, waitresponse=waitresponse)
 
-    async def unsubscribe(self, event='metadata'):
-        await super().subscribe(event=event)
+    async def unsubscribe(self, event='metadata', waitresponse=False):
+        await super().subscribe(event=event, waitresponse=waitresponse)
 
-    async def control(self, name, value=None):
-        verb = 'controls'
+    async def control(self, name, value=None, waitresponse=False):
         loopstate = ['off', 'playlist', 'track']
         controls = {
             'play': None,
@@ -59,7 +53,7 @@ class MediaPlayerService(AGLBaseService):
             assert value in loopstate, f'Tried to set invalid loopstate - {value}, use "off", "playlist" or "track"'
             msg = {'value': name, controls[name]: str(value)}
 
-        await self.request(verb, msg)
+        await self.request('controls', msg, waitresponse=waitresponse)
 
 
 async def main(loop):
