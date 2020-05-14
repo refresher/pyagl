@@ -1,8 +1,5 @@
 import asyncio
-from random import randint
-import json
 from aglbaseservice import AGLBaseService
-msgq = {}
 
 
 class WeatherService(AGLBaseService):

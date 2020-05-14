@@ -88,7 +88,7 @@ class AGLBaseService:
                 exit(1)
 
         URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None, timeout=2)
+        self._conn = connect(close_timeout=10000, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None)
         self.websocket = await self._conn.__aenter__()
         return self
 

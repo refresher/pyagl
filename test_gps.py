@@ -4,16 +4,20 @@ import pytest
 from gps import GPSService
 from concurrent import futures
 import logging
+from functools import partial
+
 
 logger = logging.getLogger('pytest-gps')
 logger.setLevel(logging.DEBUG)
 
 @pytest.fixture
 async def service():
+    event_loop = asyncio.get_running_loop()
     address = os.environ.get('AGL_TGT_IP', 'localhost')
     gpss = await GPSService(ip=address)
+    # gpss = await GPSService(ip=address)
     yield gpss
-    gpss.websocket.close()
+    await gpss.websocket.close()
 
 # @pytest.fixture
 # async def listener(service):
@@ -31,7 +35,7 @@ async def service():
 #             logger.error(e)
 
 @pytest.mark.asyncio
-async def test_location(service):
+async def test_location(event_loop, service):
     await service.location()
     r = await service.response()
     print(r)
