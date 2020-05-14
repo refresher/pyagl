@@ -1,50 +1,29 @@
-from random import randint
-import sys
 import asyncio
 from random import randint
-from websockets import connect
 import json
+from aglbaseservice import AGLBaseService
 msgq = {}
 
-IPADDR = '192.168.234.34'
-PORT = '30031'
-# PORT = '30031'
-TOKEN = 'HELLO'
-UUID = 'magic'
-URL = f'ws://{IPADDR}:{PORT}/api?token={TOKEN}&uuid={UUID}'
 
-class WeatherService:
-    def __await__(self):
-        return self._async_init().__await__()
+class WeatherService(AGLBaseService):
+    service = 'agl-service-weather'
+    parser = AGLBaseService.getparser()
+    parser.add_argument('--apikey', default=False, help='Request weather API Key', action='store_true')
 
-    async def _async_init(self):
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'])
-        self.websocket = await self._conn.__aenter__()
-        return self
-
-    async def close(self):
-        await self._conn.__aexit__(*sys.exc_info())
-
-    async def send(self, message):
-        await self.websocket.send(message)
-
-    async def receive(self):
-        return await self.websocket.recv()
+    def __init__(self, ip, port=None):
+        super().__init__(api='weather', ip=ip, port=port, service='agl-service-weather')
 
     async def apikey(self):
-        msgid = randint(0, 999999)
-        msgq[msgid] = {'request': msgid, 'response': None}
-        await self.websocket.send(message=f'[2,"{msgid}","weather/api_key",""]'.format(str(msgid)))
-        return await self.receive()
+        return await self.request('api_key', "")
 
 
 async def main():
-    MPS = await WeatherService()
-    try:
-        print(json.dumps(json.loads(await MPS.apikey()), indent=4, sort_keys=True))
-
-    finally:
-        await MPS.close()
+    args = WeatherService.parser.parse_args()
+    ws = await WeatherService(ip=args.ipaddr)
+    if args.apikey:
+        id = await ws.apikey()
+        resp = await ws.response()
+        print(resp[2]['response']['api_key'])
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
