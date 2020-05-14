@@ -24,6 +24,7 @@ class AFBT(IntEnum):
     EVENT = 5
 
 msgq = {}
+AFBLEN = 3
 
 def addrequest(msgid, msg):
     msgq[msgid] = {'request': msg, 'response': None}
@@ -41,7 +42,7 @@ class AGLBaseService:
     token: str
     uuid: str
     service = None
-    logger = logging.getLogger(service)
+    logger = None
 
     @staticmethod
     def getparser():
@@ -150,45 +151,24 @@ class AGLBaseService:
                     return port
 
     async def listener(self, stdout: bool = False):
-        try:
-            while True:
-                msg = await self.receive()
-                try:
-                    data = json.loads(msg)
-                    self.logger.debug('[AGL] -> ' + msg)
-                    if isinstance(data, list):
-                        if stdout:
-                            print(data)
-                        if data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
-                            msgid = int(data[1])
-                            if msgid in msgq:
-                                addresponse(msgid, data)
+        while True:
+            data = await self.response()
+            if stdout: print(data)
+            yield data
 
-                except JSONDecodeError:
-                    self.logger.warning("Not decoding a non-json message")
-
-        except KeyboardInterrupt:
-            self.logger.debug("Received keyboard interrupt, exiting")
-        except asyncio.CancelledError:
-            self.logger.warning("Websocket listener coroutine stopped")
-        except Exception as e:
-            self.logger.error("Unhandled seal: " + str(e))
-
-    async def response(self, stdout: bool = False):
+    async def response(self):
         try:
             msg = await self.websocket.recv()
             try:
                 data = json.loads(msg)
-                yield data
                 self.logger.debug('[AGL] -> ' + msg)
                 if isinstance(data, list):
-                    if stdout:
-                        print(data)
-                    if data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
+
+                    if len(data) == AFBLEN and data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
                         msgid = int(data[1])
                         if msgid in msgq:
                             addresponse(msgid, data)
-                yield data
+                return data
             except JSONDecodeError:
                 self.logger.warning("Not decoding a non-json message")
 
@@ -199,16 +179,14 @@ class AGLBaseService:
         except Exception as e:
             self.logger.error("Unhandled seal: " + str(e))
 
-    async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = randint(0, 9999999),
-                      waitresponse: bool = False):
+    async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = randint(0, 9999999)):
         l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
         self.logger.debug(f'[AGL] <- {l}')
         await self.send(l)
-        if waitresponse:
-            return await self.receive()
+        return msgid
 
-    async def subscribe(self, event, waitresponse=False):
-        await self.request('subscribe', {'value': f'{event}'}, waitresponse=waitresponse)
+    async def subscribe(self, event):
+        return await self.request('subscribe', {'value': f'{event}'})
 
-    async def unsubscribe(self, event, waitresponse=False):
-        await self.request('unsubscribe', {'value': f'{event}'}, waitresponse=waitresponse)
+    async def unsubscribe(self, event):
+        return await self.request('unsubscribe', {'value': f'{event}'})

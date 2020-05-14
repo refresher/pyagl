@@ -7,14 +7,14 @@ class GeoClueService(AGLBaseService):
     def __init__(self, ip, port=None, api='geoclue'):
         super().__init__(ip=ip, port=port, api=api, service='agl-service-geoclue')
 
-    async def location(self, waitresponse=False):
-        return await self.request('location', waitresponse=waitresponse)
+    async def location(self):
+        return await self.request('location')
 
-    async def subscribe(self, event='location', waitresponse=False):
-        await super().subscribe(event=event, waitresponse=waitresponse)
+    async def subscribe(self, event='location'):
+        await super().subscribe(event=event)
 
-    async def unsubscribe(self, event='location', waitresponse=False):
-        await super().unsubscribe(event=event, waitresponse=waitresponse)
+    async def unsubscribe(self, event='location'):
+        await super().unsubscribe(event=event)
 
 
 async def main(loop):

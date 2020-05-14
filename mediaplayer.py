@@ -10,16 +10,16 @@ class MediaPlayerService(AGLBaseService):
     def __init__(self, ip, port = None):
         super().__init__(api='mediaplayer', ip=ip, port=port, service='agl-service-mediaplayer')
 
-    async def playlist(self, waitresponse=False):
-        return await self.request('playlist', waitresponse=waitresponse)
+    async def playlist(self):
+        return await self.request('playlist')
 
-    async def subscribe(self, event='metadata', waitresponse=False):
-        await super().subscribe(event=event, waitresponse=waitresponse)
+    async def subscribe(self, event='metadata'):
+        await super().subscribe(event=event)
 
-    async def unsubscribe(self, event='metadata', waitresponse=False):
-        await super().subscribe(event=event, waitresponse=waitresponse)
+    async def unsubscribe(self, event='metadata'):
+        await super().subscribe(event=event)
 
-    async def control(self, name, value=None, waitresponse=False):
+    async def control(self, name, value=None):
         loopstate = ['off', 'playlist', 'track']
         controls = {
             'play': None,
@@ -53,7 +53,7 @@ class MediaPlayerService(AGLBaseService):
             assert value in loopstate, f'Tried to set invalid loopstate - {value}, use "off", "playlist" or "track"'
             msg = {'value': name, controls[name]: str(value)}
 
-        await self.request('controls', msg, waitresponse=waitresponse)
+        await self.request('controls', msg)
 
 
 async def main(loop):
@@ -64,7 +64,7 @@ async def main(loop):
     # listener = loop.create_task(MPS.listener())
     try:
         await MPS.subscribe('metadata')
-        print(await MPS.playlist(waitresponse=True))
+        await MPS.playlist()
         await MPS.control('next')
 
         # await listener

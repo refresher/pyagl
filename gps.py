@@ -13,38 +13,33 @@ class GPSService(AGLBaseService):
     def __init__(self, ip, port=None):
         super().__init__(api='gps', ip=ip, port=port, service='agl-service-gps')
 
-    async def location(self, waitresponse=False):
-        return await self.request('location', waitresponse=waitresponse)
+    async def location(self):
+        return await self.request('location')
 
-    async def subscribe(self, event='location', waitresponse=False):
-        return await super().subscribe(event=event, waitresponse=waitresponse)
+    async def subscribe(self, event='location'):
+        return await super().subscribe(event=event)
 
-    async def unsubscribe(self, event='location', waitresponse=False):
-        return await super().subscribe(event=event, waitresponse=waitresponse)
+    async def unsubscribe(self, event='location'):
+        return await super().subscribe(event=event)
 
 
 async def main(loop):
     args = GPSService.parser.parse_args()
     gpss = await GPSService(args.ipaddr)
 
-    r = await loop.run_in_executor(xc, gpss.response)
+    l = await loop.run_in_executor(xc, gpss.listener)
+    # print(await r.__anext__())
 
     if args.loglevel:
-        GPSService.logger.setLevel(args.loglevel)
+        gpss.logger.setLevel(args.loglevel)
     if args.location:
-        await gpss.location()
-        async for response in r:
-            await gpss.location()
-            print(await r.__anext__())
-
-
-        # loc = await l
-        # print(loc)
+        msgid = await gpss.location()
+        print(await gpss.receive())
 
     if args.subscribe:
         await gpss.subscribe(args.subscribe)
 
-    await gpss.listener()
+    print(await l.__anext__())
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()

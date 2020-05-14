@@ -13,41 +13,41 @@ class BluetoothService(AGLBaseService):
     def __init__(self, ip, port=None, service='agl-service-bluetooth'):
         super().__init__(api='Bluetooth-Manager', ip=ip, port=port, service=service)
 
-    async def subscribe(self, event='device_changes', waitresponse=False):
+    async def subscribe(self, event='device_changes'):
         await super().subscribe(event=event)
 
-    async def unsubscribe(self, event='device_changes', waitresponse=False):
+    async def unsubscribe(self, event='device_changes'):
         await super().unsubscribe(event=event)
 
-    async def managed_objects(self, waitresponse=False):
-        return await self.request('managed_objects', waitresponse=waitresponse)
+    async def managed_objects(self):
+        return await self.request('managed_objects')
 
-    async def adapter_state(self, adapter=None, value=None, waitresponse=False):
+    async def adapter_state(self, adapter=None, value=None):
         p = {}
         if adapter:
             p = {'adapter': adapter}
             if isinstance(value, dict):
                 p = {**p, **value}
 
-        return await self.request('adapter_state', p, waitresponse=waitresponse)
+        return await self.request('adapter_state', p)
 
-    async def default_adapter(self, waitresponse=False):
-        return await self.request('default_adapter', "", waitresponse=waitresponse)
+    async def default_adapter(self):
+        return await self.request('default_adapter', "")
 
-    async def connect(self, device: str = 'hci0', waitresponse=False):
-        return await self.request('connect', {'device': device}, waitresponse=waitresponse)
+    async def connect(self, device: str = 'hci0'):
+        return await self.request('connect', {'device': device})
 
-    async def disconnect(self, device: str = 'hci0', waitresponse=False):
-        return await self.request('disconnect', {'device': device}, waitresponse=waitresponse)
+    async def disconnect(self, device: str = 'hci0'):
+        return await self.request('disconnect', {'device': device})
 
-    async def pair(self, device, waitresponse=False):
-        return await self.request('pair', {'device': device}, waitresponse=waitresponse)
+    async def pair(self, device):
+        return await self.request('pair', {'device': device})
 
-    async def cancel_pairing(self, waitresponse=False):
-        return await self.request('cancel_pairing', waitresponse=waitresponse)
+    async def cancel_pairing(self):
+        return await self.request('cancel_pairing')
 
-    async def confirm_pairing(self, pincode, waitresponse=False):
-        return await self.request('confirm_pairing', {'pincode': pincode}, waitresponse=waitresponse)
+    async def confirm_pairing(self, pincode):
+        return await self.request('confirm_pairing', {'pincode': pincode})
 
     async def avrcp_controls(self):
         pass
