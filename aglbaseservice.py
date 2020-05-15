@@ -14,8 +14,8 @@ import os
 import re
 from contextlib import asynccontextmanager
 
-logging.getLogger('AGLBaseService')
-logging.basicConfig(level=logging.DEBUG)
+# logging.getLogger('AGLBaseService')
+# logging.basicConfig(level=logging.DEBUG)
 
 class AFBT(IntEnum):
     REQUEST = 2,
@@ -88,7 +88,7 @@ class AGLBaseService:
                 exit(1)
 
         URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
-        self._conn = connect(close_timeout=10000, uri=URL, subprotocols=['x-afb-ws-json1'], ping_interval=None)
+        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_timeout=None)
         self.websocket = await self._conn.__aenter__()
         return self
 
@@ -123,7 +123,7 @@ class AGLBaseService:
                 self.logger.debug(f'Service PID: {str(pid)}')
 
             sockets = await c.run(f'find /proc/{pid}/fd/ | xargs readlink | grep socket')
-            inodes = frozenset(re.findall('socket:\[(.*)\]', sockets.stdout))
+            inodes = frozenset(re.findall("socket:\\[(.*)\\]", sockets.stdout))
             self.logger.debug(f"Socket inodes: {inodes}")
 
             procnettcp = await c.run('cat /proc/net/tcp')
