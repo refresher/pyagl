@@ -7,12 +7,12 @@ from typing import Union
 import asyncssh
 import argparse
 import asyncio
+import binascii
 import logging
 import json
 import sys
 import os
 import re
-from contextlib import asynccontextmanager
 
 # logging.getLogger('AGLBaseService')
 # logging.basicConfig(level=logging.DEBUG)
@@ -26,6 +26,15 @@ class AFBT(IntEnum):
 msgq = {}
 AFBLEN = 3
 
+
+def betterrand():
+    bs = os.urandom(5)
+    result = bs[0] * bs[1] * bs[2] * bs[3] + bs[4]
+    while True:
+        yield result
+        bs = os.urandom(5)
+        result = bs[0]*bs[1]*bs[2]*bs[3]+bs[4]
+
 def addrequest(msgid, msg):
     msgq[msgid] = {'request': msg, 'response': None}
 
@@ -33,6 +42,31 @@ def addresponse(msgid, msg):
     if msgid in msgq.keys():
         msgq[msgid]['response'] = msg
 
+class AFBResponse:
+    type: AFBT
+    msgid: int
+    data: dict
+    api: str
+
+    def __init__(self, data: list):
+        if type(data[0]) is not int:
+            logging.debug(f'Received a response with non-integer message type {binascii.hexlify(data[0])}')
+            raise ValueError('Received a response with non-integer message type')
+        if data[0] not in [AFBT.RESPONSE, AFBT.ERROR, AFBT.ERROR]:
+            raise ValueError(f'Received a response with invalid message type {data[0]}')
+        self.type = data[0]
+        if self.type == AFBT.RESPONSE:
+            if not str.isnumeric(data[1]):
+                raise ValueError(f'Received a response with non-numeric message id {data[1]}')
+            self.msgid = int(data[1])
+        elif self.type == AFBT.EVENT:
+            self.api = data[1]
+        elif self.type == AFBT.ERROR:
+            logging.debug(f'AFB returned erroneous response {data}')
+            raise ValueError(f'AFB returned erroneous response {data}')
+        if 'request' not in data[2] or 'response' not in data[2]:
+            logging.error('Received malformed or invalid response')
+        self.data = data[2]
 
 class AGLBaseService:
     api: str
@@ -52,8 +86,8 @@ class AGLBaseService:
         parser.add_argument('ipaddr', default=os.environ.get('AGL_TGT_IP', 'localhost'), help='AGL host address')
         parser.add_argument('--port', default=os.environ.get('AGL_TGT_PORT', None), help=f'AGL service websocket port')
         parser.add_argument('--listener', default=False, help='Register a listener for incoming events', action='store_true')
-        parser.add_argument('--subscribe', type=str, help='Subscribe to event type', metavar='event')
-        parser.add_argument('--unsubscribe', type=str, help='Unsubscribe from event type', metavar='event')
+        parser.add_argument('--subscribe', type=str, help='Subscribe to event type', action='append', metavar='event')
+        parser.add_argument('--unsubscribe', type=str, help='Unsubscribe from event type', action='append', metavar='event')
         parser.add_argument('--json', type=str, help='Send your own json string')
         parser.add_argument('--verb', type=str, help='Send the json above to specific verb')
         parser.add_argument('--api', type=str, help='Send the above two to a specific api')
@@ -168,7 +202,7 @@ class AGLBaseService:
                         msgid = int(data[1])
                         if msgid in msgq:
                             addresponse(msgid, data)
-                return data
+                    return data
             except JSONDecodeError:
                 self.logger.warning("Not decoding a non-json message")
 
@@ -179,7 +213,8 @@ class AGLBaseService:
         except Exception as e:
             self.logger.error("Unhandled seal: " + str(e))
 
-    async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = randint(0, 9999999)):
+    async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = None):
+        msgid = next(betterrand()) if msgid is None else msgid
         l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
         self.logger.debug(f'[AGL] <- {l}')
         await self.send(l)
