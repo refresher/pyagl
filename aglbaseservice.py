@@ -17,6 +17,7 @@ import re
 # logging.getLogger('AGLBaseService')
 # logging.basicConfig(level=logging.DEBUG)
 
+# AFB message type
 class AFBT(IntEnum):
     REQUEST = 2,
     RESPONSE = 3,
@@ -27,13 +28,11 @@ msgq = {}
 AFBLEN = 3
 
 
-def betterrand():
-    bs = os.urandom(5)
-    result = bs[0] * bs[1] * bs[2] * bs[3] + bs[4]
+def newrand():
     while True:
-        yield result
         bs = os.urandom(5)
-        result = bs[0]*bs[1]*bs[2]*bs[3]+bs[4]
+        result = bs[0] * bs[1] * bs[2] * bs[3] + bs[4]
+        yield result
 
 def addrequest(msgid, msg):
     msgq[msgid] = {'request': msg, 'response': None}
@@ -47,26 +46,53 @@ class AFBResponse:
     msgid: int
     data: dict
     api: str
+    status: str
+    info: str
 
     def __init__(self, data: list):
         if type(data[0]) is not int:
             logging.debug(f'Received a response with non-integer message type {binascii.hexlify(data[0])}')
             raise ValueError('Received a response with non-integer message type')
-        if data[0] not in [AFBT.RESPONSE, AFBT.ERROR, AFBT.ERROR]:
+        if data[0] not in AFBT._value2member_map_:
             raise ValueError(f'Received a response with invalid message type {data[0]}')
-        self.type = data[0]
+        self.type = AFBT(data[0])
+
         if self.type == AFBT.RESPONSE:
+            if 'request' not in data[2]:
+                logging.error(f'Received malformed or invalid response without "request" dict - {data}')
             if not str.isnumeric(data[1]):
                 raise ValueError(f'Received a response with non-numeric message id {data[1]}')
-            self.msgid = int(data[1])
+            else:
+                self.msgid = int(data[1])
+            self.status = data[2]['request']['status']
+            if 'info' in data[2]['request']:
+                self.info = data[2]['request']['info']
+            if 'response' in data[2]:
+                self.data = data[2]['response']
+
         elif self.type == AFBT.EVENT:
             self.api = data[1]
+            if 'data' in data[2]:
+                self.data = data[2]['data']
+
         elif self.type == AFBT.ERROR:
             logging.debug(f'AFB returned erroneous response {data}')
-            raise ValueError(f'AFB returned erroneous response {data}')
-        if 'request' not in data[2] or 'response' not in data[2]:
-            logging.error('Received malformed or invalid response')
-        self.data = data[2]
+            self.msgid = int(data[1])
+            self.status = data[2]['request']['status']
+            self.info = data[2]['request']['info']
+            # raise ValueError(f'AFB returned erroneous response {data}')
+        # if 'request' not in data[2] or 'response' not in data[2]:
+
+        if 'response' in data[2]:
+            self.data = data[2]['response']
+
+    def __str__(self):  # for debugging purposes
+        if self.type == AFBT.EVENT:
+            return f'[{self.type.name}][{self.api}][Data: {self.data if hasattr(self, "data") else None}]'
+        else:
+            return f'[{self.type.name}][Status: {self.status}][{self.msgid}]' \
+                   f'[Info: {self.info if hasattr(self,"info") else None}]' \
+                   f'[Data: {self.data if hasattr(self, "data") else None}]'
 
 class AGLBaseService:
     api: str
@@ -80,7 +106,7 @@ class AGLBaseService:
 
     @staticmethod
     def getparser():
-        parser = argparse.ArgumentParser(description='Utility to interact with agl-service-gps via it\'s websocket')
+        parser = argparse.ArgumentParser(description='Utility to interact with agl-service-* via it\'s websocket')
         parser.add_argument('-l', '--loglevel', help='Level of logging verbosity', default='INFO',
                             choices=list(logging._nameToLevel.keys()))
         parser.add_argument('ipaddr', default=os.environ.get('AGL_TGT_IP', 'localhost'), help='AGL host address')
@@ -186,7 +212,8 @@ class AGLBaseService:
 
     async def listener(self, stdout: bool = False):
         while True:
-            data = await self.response()
+            raw = await self.response()
+            data = AFBResponse(raw)
             if stdout: print(data)
             yield data
 
@@ -197,7 +224,7 @@ class AGLBaseService:
                 data = json.loads(msg)
                 self.logger.debug('[AGL] -> ' + msg)
                 if isinstance(data, list):
-
+                    # check whether the received response is an answer to previous query and queue it for debugging
                     if len(data) == AFBLEN and data[0] == AFBT.RESPONSE and str.isnumeric(data[1]):
                         msgid = int(data[1])
                         if msgid in msgq:
@@ -214,7 +241,7 @@ class AGLBaseService:
             self.logger.error("Unhandled seal: " + str(e))
 
     async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = None):
-        msgid = next(betterrand()) if msgid is None else msgid
+        msgid = next(newrand()) if msgid is None else msgid
         l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
         self.logger.debug(f'[AGL] <- {l}')
         await self.send(l)

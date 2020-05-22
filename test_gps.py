@@ -2,42 +2,34 @@ import asyncio
 import os
 import pytest
 from gps import GPSService
-from concurrent import futures
 import logging
-from functools import partial
 
 
 logger = logging.getLogger('pytest-gps')
 logger.setLevel(logging.DEBUG)
 
-@pytest.fixture
+@pytest.fixture(scope="module")
+def event_loop():
+    loop = asyncio.get_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.fixture(scope='module')
 async def service():
-    event_loop = asyncio.get_running_loop()
     address = os.environ.get('AGL_TGT_IP', 'localhost')
     gpss = await GPSService(ip=address)
-    # gpss = await GPSService(ip=address)
     yield gpss
     await gpss.websocket.close()
 
-# @pytest.fixture
-# async def listener(service):
-#     loop = asyncio.get_event_loop()
-#     xc = futures.ThreadPoolExecutor(1)
-#     l = await loop.run_in_executor(xc, service.listener)
-#     while True:
-#         try:
-#             yield l.__anext__()
-#         except RuntimeError:
-#             xc.shutdown()
-#         except asyncio.CancelledError:
-#             logger.warning("Websocket listener coroutine stopped")
-#         except Exception as e:
-#             logger.error(e)
+@pytest.fixture(scope='module')
+async def listener(event_loop, service):
+    listener = service.listener()
 
 @pytest.mark.asyncio
-async def test_location(event_loop, service):
+async def test_location(event_loop, service: GPSService):
     await service.location()
-    r = await service.response()
-    print(r)
-    assert True
+    resp = await service.response()
+    print(resp)
+    assert isinstance(resp, list)
+    assert resp[2]['request']['status'] == 'success', f"location() returned failure; {resp[2]['request']['info']}"
 

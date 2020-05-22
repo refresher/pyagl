@@ -1,20 +1,22 @@
-from aglbaseservice import AGLBaseService
+from aglbaseservice import AGLBaseService, AFBResponse
 import asyncio
 import os
 
-from concurrent import futures
-xc = futures.ThreadPoolExecutor(1)
 
 class GPSService(AGLBaseService):
     service = 'agl-service-gps'
     parser = AGLBaseService.getparser()
-    parser.add_argument('--location', help='Query location verb', action='store_true')
+    parser.add_argument('--record', help='Begin recording verb ')
+    parser.add_argument('--location', help='Get current location', action='store_true')
 
     def __init__(self, ip, port=None):
         super().__init__(api='gps', ip=ip, port=port, service='agl-service-gps')
 
     async def location(self):
         return await self.request('location')
+
+    async def record(self, state='on'):
+        return await self.request('record', {'state': state})
 
     async def subscribe(self, event='location'):
         return await super().subscribe(event=event)
@@ -27,19 +29,27 @@ async def main(loop):
     args = GPSService.parser.parse_args()
     gpss = await GPSService(args.ipaddr)
 
-    l = await loop.run_in_executor(xc, gpss.listener)
-    # print(await r.__anext__())
-
     if args.loglevel:
         gpss.logger.setLevel(args.loglevel)
+
+    if args.record:
+        id = await gpss.record(args.record)
+        print(f'Sent gps record request with value {args.record} with messageid {id}')
+        print(AFBResponse(await gpss.response()))
+
     if args.location:
         msgid = await gpss.location()
-        print(await gpss.receive())
+        print(AFBResponse(await gpss.response()))
 
     if args.subscribe:
-        await gpss.subscribe(args.subscribe)
+        for event in args.subscribe:
+            id = await gpss.subscribe(event)
+            print(f'Subscribed for event {event} with messageid {id}')
+            print(AFBResponse(await gpss.response()))
 
-    print(await l.__anext__())
+    if args.listener:
+        async for response in gpss.listener():
+            print(response)
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()

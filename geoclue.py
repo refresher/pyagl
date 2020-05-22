@@ -1,9 +1,13 @@
-from aglbaseservice import AGLBaseService
+from aglbaseservice import AGLBaseService, AFBResponse
 import asyncio
 import os
 
 
 class GeoClueService(AGLBaseService):
+    service = 'agl-service-geoclue'
+    parser = AGLBaseService.getparser()
+    parser.add_argument('--location', help='Get current location', action='store_true')
+
     def __init__(self, ip, port=None, api='geoclue'):
         super().__init__(ip=ip, port=port, api=api, service='agl-service-geoclue')
 
@@ -11,20 +15,29 @@ class GeoClueService(AGLBaseService):
         return await self.request('location')
 
     async def subscribe(self, event='location'):
-        await super().subscribe(event=event)
+        return await super().subscribe(event=event)
 
     async def unsubscribe(self, event='location'):
-        await super().unsubscribe(event=event)
+        return await super().unsubscribe(event=event)
 
 
 async def main(loop):
-    addr = os.environ.get('AGL_TGT_IP', 'localhost')
-    GCS = await GeoClueService(ip=addr)
-    tasks = []
-    tasks.append(loop.create_task(GCS.location()))
-    tasks.append(loop.create_task(GCS.listener()))
-    loop.run_until_complete(tasks)
+    args = GeoClueService.parser.parse_args()
+    gcs = await GeoClueService(args.ipaddr)
 
+    if args.location:
+        id = await gcs.location()
+        print(f'Sent location request with messageid {id}')
+        print(AFBResponse(await gcs.response()))
+
+    if args.subscribe:
+        for event in args.subscribe:
+            id = await gcs.subscribe(event)
+            print(f"Subscribed for {event} with messageid {id}")
+            print(AFBResponse(await gcs.response()))
+    if args.listener:
+        async for response in gcs.listener():
+            print(response)
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
