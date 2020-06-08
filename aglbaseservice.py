@@ -94,6 +94,7 @@ class AFBResponse:
                    f'[Info: {self.info if hasattr(self,"info") else None}]' \
                    f'[Data: {self.data if hasattr(self, "data") else None}]'
 
+
 class AGLBaseService:
     api: str
     url: str
@@ -148,7 +149,7 @@ class AGLBaseService:
                 exit(1)
 
         URL = f'ws://{self.ip}:{self.port}/api?token={self.token}&uuid={self.uuid}'
-        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_timeout=None)
+        self._conn = connect(close_timeout=0, uri=URL, subprotocols=['x-afb-ws-json1'], ping_timeout=None, compression=None)
         self.websocket = await self._conn.__aenter__()
         return self
 
@@ -248,7 +249,7 @@ class AGLBaseService:
         return msgid
 
     async def subscribe(self, event):
-        return await self.request('subscribe', {'value': f'{event}'})
+        return await self.request('subscribe', {'value': f'{event}'})  # some services may use 'event' instead 'value'
 
     async def unsubscribe(self, event):
         return await self.request('unsubscribe', {'value': f'{event}'})

@@ -27,7 +27,7 @@ class GPSService(AGLBaseService):
 
 async def main(loop):
     args = GPSService.parser.parse_args()
-    gpss = await GPSService(args.ipaddr)
+    gpss = await GPSService(ip=args.ipaddr, port=args.port)
 
     if args.loglevel:
         gpss.logger.setLevel(args.loglevel)

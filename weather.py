@@ -21,7 +21,7 @@ class WeatherService(AGLBaseService):
 
 async def main():
     args = WeatherService.parser.parse_args()
-    aws = await WeatherService(ip=args.ipaddr)
+    aws = await WeatherService(ip=args.ipaddr, port=args.port)
     if args.current:
         id = await aws.current_weather()
         resp = AFBResponse(await aws.response())
