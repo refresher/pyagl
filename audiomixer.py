@@ -28,11 +28,11 @@ class AudioMixerService(AGLBaseService):
     async def list_controls(self):
         return await self.request('list_controls')
 
-    async def volume(self, value=None):
+    async def volume(self, control='Master', value=None):
         if value is not None:
-            return await self.request('volume', {'control': 'Master', 'value': value})
+            return await self.request('volume', {'control': control, 'value': value})
         else:
-            return await self.request('volume', {'control': 'Master'})
+            return await self.request('volume', {'control': control})
 
     async def mute(self, value=None):
         return await self.request('mute', {'control': 'Master', 'value': value})

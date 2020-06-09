@@ -1,7 +1,7 @@
 import asyncio
 import os
 import pytest
-from gps import GPSService
+from gps import GPSService as GPS
 import logging
 from aglbaseservice import AFBResponse, AFBT
 
@@ -18,7 +18,7 @@ def event_loop():
 @pytest.fixture(scope='module')
 async def service():
     address = os.environ.get('AGL_TGT_IP', 'localhost')
-    gpss = await GPSService(ip=address)
+    gpss = await GPS(ip=address)
     yield gpss
     await gpss.websocket.close()
 
@@ -28,24 +28,24 @@ async def service():
 #         yield _response
 
 @pytest.mark.xfail  # expecting this to fail because of "No 3D GNSS fix" and GPS is unavailable
-async def test_location(event_loop, service: GPSService):
+async def test_location(event_loop, service: GPS):
     id = await service.location()
     resp = AFBResponse(await service.response())
     assert resp.status == 'success'
 
-async def test_subscribe_location(event_loop, service: GPSService):
+async def test_subscribe_location(event_loop, service: GPS):
     id = await service.subscribe('location')
     resp = AFBResponse(await service.response())
     assert resp.msgid == id
     assert resp.status == 'success'
 
-async def test_unsubscribe(event_loop, service: GPSService):
+async def test_unsubscribe(event_loop, service: GPS):
     id = await service.unsubscribe('location')
     resp = AFBResponse(await service.response())
     assert resp.msgid == id
     assert resp.status == 'success'
 
-async def test_location_events(event_loop, service: GPSService):
+async def test_location_events(event_loop, service: GPS):
     id = await service.subscribe('location')
     resp = AFBResponse(await service.response())
     assert resp.msgid == id
