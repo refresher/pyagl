@@ -1,0 +1,6 @@
+{
+  "aglsystemdservice": "agl-service-something",
+  "classname": "NewService",
+  "api": "serviceapi",
+  "verblist": ["subscribe", "unsubscribe"]
+}

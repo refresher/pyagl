@@ -64,6 +64,9 @@ class BluetoothService(AGLBaseService):
     async def confirm_pairing(self, pincode):
         return await self.request('confirm_pairing', {'pincode': pincode})
 
+    async def remove_device(self, device):
+        return await self.request('remove_device', {'device': device})
+
     async def avrcp_controls(self):
         pass
 

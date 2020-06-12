@@ -241,6 +241,9 @@ class AGLBaseService:
         except Exception as e:
             self.logger.error("Unhandled seal: " + str(e))
 
+    async def afbresponse(self):
+        return AFBResponse(await self.response())
+
     async def request(self, verb: str, values: Union[str, dict] = "", msgid: int = None):
         msgid = next(newrand()) if msgid is None else msgid
         l = json.dumps([AFBT.REQUEST, str(msgid), f'{self.api}/{verb}', values])
