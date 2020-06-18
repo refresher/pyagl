@@ -1,0 +1,8 @@
+{
+  "services_dir": "services",
+  "tests_dir": "tests",
+  "service_slug": "service",
+  "aglsystemdservice": "agl-service-something",
+  "classname": "NewService",
+  "api": "serviceapi"
+}

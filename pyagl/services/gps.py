@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 import os
 
@@ -33,8 +33,8 @@ async def main(loop):
         gpss.logger.setLevel(args.loglevel)
 
     if args.record:
-        id = await gpss.record(args.record)
-        print(f'Sent gps record request with value {args.record} with messageid {id}')
+        msgid = await gpss.record(args.record)
+        print(f'Sent gps record request with value {args.record} with messageid {msgid}')
         print(AFBResponse(await gpss.response()))
 
     if args.location:
@@ -43,8 +43,8 @@ async def main(loop):
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await gpss.subscribe(event)
-            print(f'Subscribed for event {event} with messageid {id}')
+            msgid = await gpss.subscribe(event)
+            print(f'Subscribed for event {event} with messageid {msgid}')
             print(AFBResponse(await gpss.response()))
 
     if args.listener:

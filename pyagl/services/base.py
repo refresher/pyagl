@@ -80,8 +80,6 @@ class AFBResponse:
             self.msgid = int(data[1])
             self.status = data[2]['request']['status']
             self.info = data[2]['request']['info']
-            # raise ValueError(f'AFB returned erroneous response {data}')
-        # if 'request' not in data[2] or 'response' not in data[2]:
 
         if 'response' in data[2]:
             self.data = data[2]['response']

@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 import os
 
@@ -22,8 +22,6 @@ class BluetoothService(AGLBaseService):
     parser.add_argument('--cancel_pairing', help='Cancel ongoing pairing')
     parser.add_argument('--confirm_pairing', metavar='pincode')
     parser.add_argument('--remove_device', metavar='dev_88_0F_10_96_D3_20', help='Remove paired device')
-
-
 
     def __init__(self, ip, port=None, service='agl-service-bluetooth'):
         super().__init__(api='Bluetooth-Manager', ip=ip, port=port, service=service)
@@ -75,8 +73,8 @@ async def main(loop):
     bts = await BluetoothService(ip=args.ipaddr, port=args.port)
 
     if args.default_adapter:
-        id = await bts.default_adapter()
-        print(f'Requesting default adapter with id {id}')
+        msgid = await bts.default_adapter()
+        print(f'Requesting default adapter with id {msgid}')
         r = AFBResponse(await bts.response())
         print(r)
 

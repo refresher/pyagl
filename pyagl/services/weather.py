@@ -1,6 +1,6 @@
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 import json
-from aglbaseservice import AGLBaseService, AFBResponse
 
 
 class WeatherService(AGLBaseService):
@@ -23,19 +23,19 @@ async def main():
     args = WeatherService.parser.parse_args()
     aws = await WeatherService(ip=args.ipaddr, port=args.port)
     if args.current:
-        id = await aws.current_weather()
+        msgid = await aws.current_weather()
         resp = AFBResponse(await aws.response())
         print(json.dumps(resp.data, indent=2))
 
     if args.apikey:
-        id = await aws.apikey()
+        msgid = await aws.apikey()
         resp = AFBResponse(await aws.response())
         print(resp.data['api_key'])
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await aws.subscribe(event)
-            print(f'Subscribed for event {event} with messageid {id}')
+            msgid = await aws.subscribe(event)
+            print(f'Subscribed for event {event} with messageid {msgid}')
             resp = AFBResponse(await aws.response())
             print(resp)
 

@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 from typing import Union
 import logging
 import asyncio
@@ -91,49 +91,49 @@ async def main(loop):
     MPS = await MediaPlayerService(ip=args.ipaddr)
 
     if args.playlist:
-        id = await MPS.playlist()
+        msgid = await MPS.playlist()
         r = AFBResponse(await MPS.response())
         for l in r.data['list']: print(l)
 
     if args.control:
-        id = await MPS.control(args.control)
-        print(f'Sent {args.control} request with messageid {id}')
+        msgid = await MPS.control(args.control)
+        print(f'Sent {args.control} request with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.seek:
-        id = await MPS.control('seek', args.seek)
-        print(f'Sent seek request to {args.seek} msec with messageid {id}')
+        msgid = await MPS.control('seek', args.seek)
+        print(f'Sent seek request to {args.seek} msec with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.fastforward:
-        id = await MPS.control('fast-forward', args.fastforward)
-        print(f'Sent fast-forward request for {args.fastforward} msec with messageid {id}')
+        msgid = await MPS.control('fast-forward', args.fastforward)
+        print(f'Sent fast-forward request for {args.fastforward} msec with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.rewind:
-        id = await MPS.control('rewind', -args.rewind)
-        print(f'Sent rewind request for {args.rewind} msec with messageid {id}')
+        msgid = await MPS.control('rewind', -args.rewind)
+        print(f'Sent rewind request for {args.rewind} msec with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.picktrack:
-        id = await MPS.control('pick-track', args.picktrack)
-        print(f'Sent pick-track request with index {args.rewind} with messageid {id}')
+        msgid = await MPS.control('pick-track', args.picktrack)
+        print(f'Sent pick-track request with index {args.rewind} with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.volume:
-        id = await MPS.control('volume', int(args.volume))
-        print(f'Sent volume request: {args.rewind} with messageid {id}')
+        msgid = await MPS.control('volume', int(args.volume))
+        print(f'Sent volume request: {args.rewind} with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
     if args.loop:
-        id = await MPS.control('loop', args.loop)
-        print(f'Sent loop-state request: {args.loop} with messageid {id}')
+        msgid = await MPS.control('loop', args.loop)
+        print(f'Sent loop-state request: {args.loop} with messageid {msgid}')
         r = AFBResponse(await MPS.response())
         print(r)
 
@@ -145,8 +145,8 @@ async def main(loop):
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await MPS.subscribe(event)
-            print(f"Subscribed for event {event} with messageid {id}")
+            msgid = await MPS.subscribe(event)
+            print(f"Subscribed for event {event} with messageid {msgid}")
             r = await MPS.response()
             print(r)
 

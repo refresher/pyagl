@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 import os
 
@@ -73,15 +73,15 @@ async def main():
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await ams.subscribe(event)
-            print(f'Subscribing to {event} with id {id}')
+            msgid = await ams.subscribe(event)
+            print(f'Subscribing to {event} with id {msgid}')
             r = AFBResponse(await ams.response())
             print(r)
 
     if args.unsubscribe:
         for event in args.unsubscribe:
-            id = await ams.unsubscribe(event)
-            print(f'Unsubscribing from {event} with id {id}')
+            msgid = await ams.unsubscribe(event)
+            print(f'Unsubscribing from {event} with id {msgid}')
             r = AFBResponse(await ams.response())
             print(r)
 

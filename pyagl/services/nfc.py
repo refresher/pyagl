@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 
 class NFCService(AGLBaseService):
@@ -21,15 +21,15 @@ async def main(loop):
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await nfcs.subscribe(event)
-            print(f"Subscribing for event {event} with messageid {id}")
+            msgid = await nfcs.subscribe(event)
+            print(f"Subscribing for event {event} with messageid {msgid}")
             r = AFBResponse(await nfcs.response())
             print(r)
 
     if args.unsubscribe:
         for event in args.unsubscribe:
-            id = await nfcs.unsubscribe(event)
-            print(f"Unsubscribing for event {event} with messageid {id}")
+            msgid = await nfcs.unsubscribe(event)
+            print(f"Unsubscribing for event {event} with messageid {msgid}")
             r = AFBResponse(await nfcs.response())
             print(r)
 

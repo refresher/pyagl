@@ -1,4 +1,4 @@
-from aglbaseservice import AGLBaseService, AFBResponse
+from pyagl.services.base import AGLBaseService, AFBResponse
 import asyncio
 import os
 
@@ -26,14 +26,14 @@ async def main(loop):
     gcs = await GeoClueService(args.ipaddr)
 
     if args.location:
-        id = await gcs.location()
-        print(f'Sent location request with messageid {id}')
+        msgid = await gcs.location()
+        print(f'Sent location request with messageid {msgid}')
         print(AFBResponse(await gcs.response()))
 
     if args.subscribe:
         for event in args.subscribe:
-            id = await gcs.subscribe(event)
-            print(f"Subscribed for {event} with messageid {id}")
+            msgid = await gcs.subscribe(event)
+            print(f"Subscribed for {event} with messageid {msgid}")
             print(AFBResponse(await gcs.response()))
     if args.listener:
         async for response in gcs.listener():
