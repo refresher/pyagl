@@ -15,7 +15,6 @@ class AudioMixerService(AGLBaseService):
     parser.add_argument('--setvolume', help='Set volume level', type=float)
     parser.add_argument('--getvolume', help='Get volume level', action='store_true')
 
-
     def __init__(self, ip, port=None, service='agl-service-audiomixer'):
         super().__init__(api='audiomixer', ip=ip, port=port, service=service)
 
