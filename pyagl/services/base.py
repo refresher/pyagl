@@ -64,33 +64,26 @@ class AFBResponse:
                 raise ValueError(f'Received a response with non-numeric message id {data[1]}')
             else:
                 self.msgid = int(data[1])
-            self.status = data[2]['request']['status']
-            if 'info' in data[2]['request']:
-                self.info = data[2]['request']['info']
-            if 'response' in data[2]:
-                self.data = data[2]['response']
+            self.status = data[2]['request'].get('status')
+            self.info = data[2]['request'].get('info')
 
         elif self.type == AFBT.EVENT:
             self.api = data[1]
-            if 'data' in data[2]:
-                self.data = data[2]['data']
+            self.data = data[2].get('data')
 
         elif self.type == AFBT.ERROR:
             logging.debug(f'AFB returned erroneous response {data}')
             self.msgid = int(data[1])
-            self.status = data[2]['request']['status']
-            self.info = data[2]['request']['info']
+            self.status = data[2]['request'].get('status')
+            self.info = data[2]['request'].get('info')
 
-        if 'response' in data[2]:
-            self.data = data[2]['response']
+        self.data = data[2].get('response')
 
     def __str__(self):  # for debugging purposes
         if self.type == AFBT.EVENT:
-            return f'[{self.type.name}][{self.api}][Data: {self.data if hasattr(self, "data") else None}]'
+            return f'[{self.type.name}][{self.api}][Data: {self.data}]'
         else:
-            return f'[{self.type.name}][Status: {self.status}][{self.msgid}]' \
-                   f'[Info: {self.info if hasattr(self,"info") else None}]' \
-                   f'[Data: {self.data if hasattr(self, "data") else None}]'
+            return f'[{self.type.name}][Status: {self.status}][{self.msgid}][Info: {self.info}][Data: {self.data}]'
 
 
 class AGLBaseService:
