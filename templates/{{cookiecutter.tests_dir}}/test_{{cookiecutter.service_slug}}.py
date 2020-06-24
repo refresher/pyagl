@@ -12,7 +12,6 @@ pytestmark = pytest.mark.asyncio
 def event_loop():
     loop = asyncio.get_event_loop()
     yield loop
-    loop.close()
 
 @pytest.fixture(scope='module')
 async def service():
@@ -20,4 +19,4 @@ async def service():
     port = os.environ.get('AGL_TGT_PORT', None)
     svc = await {{cookiecutter.classname}}(ip=address, port=port)
     yield svc
-    await svc.websocket.close()
+
